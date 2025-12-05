@@ -1,7 +1,7 @@
 {
   "name": "joe-webserver",
   "version": "1.0.1",
-  "description": "基于nodejs express框架的静态文件服务器，支持本地代理功能",
+  "description": "基于 nodejs express 框架的 Joe Web Server 静态文件服务器，支持本地代理功能",
   "main": "index.js",
   "repository": {
     "type": "git",
@@ -33,10 +33,15 @@
     "open": "^8.4.2"
   },
   "keywords": [
-    "webserver",
-    "static",
-    "https",
-    "http"
+    "webserver", 
+    "static", 
+    "https", 
+    "http",
+    "joe-webserver",
+    "joewebserver",
+    "express",
+    "proxy",
+    "static-server"
   ],
   "author": "qiao_915@yeah.net",
   "license": "MIT"
