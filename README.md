@@ -1,6 +1,6 @@
 # JoeWebServer
 
-一个类似anywhere的静态文件服务器，支持本地代理功能。
+基于nodejs express框架的静态文件服务器，支持本地代理功能。
 
 ## 功能特性
 

@@ -1,8 +1,12 @@
 {
   "name": "joe-webserver",
-  "version": "1.0.0",
-  "description": "简易静态文件服务器，支持设置本地代理",
+  "version": "1.0.1",
+  "description": "基于nodejs express框架的静态文件服务器，支持本地代理功能",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qiao915/joe-webserver.git"
+  },
   "bin": {
     "joewebserver": "index.js",
     "JoeWebServer": "index.js"
