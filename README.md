@@ -1,112 +1,112 @@
 # JoeWebServer
 
-基于 nodejs express 框架的 Joe Web Server 静态文件服务器，支持本地代理功能。
+A static file server based on Node.js Express framework with local proxy support.
 
-## 功能特性
+[中文文档 (Chinese Documentation)](README.zh.md)
 
-- 🔹 **静态文件服务**：快速将当前目录变成静态文件服务器
-- 🔹 **目录列表**：美观的目录结构展示
-- 🔹 **代理功能**：支持将特定路径的请求转发到远程服务器
-- 🔹 **自定义配置**：支持自定义端口、目录、代理等参数
-- 🔹 **自动打开浏览器**：可选的浏览器自动打开功能
-- 🔹 **彩色日志**：清晰的彩色日志输出
-- 🔹 **错误处理**：友好的404错误页面
+## Features
 
-## 安装
+- 🔹 **Static File Serving**: Quickly turn your current directory into a static file server
+- 🔹 **Directory Listing**: Beautiful directory structure display
+- 🔹 **Proxy Functionality**: Support forwarding requests from specific paths to remote servers
+- 🔹 **Custom Configuration**: Support customizing port, directory, proxy, and other parameters
+- 🔹 **Auto Open Browser**: Optional browser auto-open feature
+- 🔹 **Colorful Logs**: Clear and colorful log output
+- 🔹 **Error Handling**: Friendly 404 error page
 
-### 全局安装
+## Installation
+
+### Global Installation
 
 ```bash
 npm install -g joe-webserver
 ```
 
-### 局部安装
+### Local Installation
 
 ```bash
 npm install joe-webserver --save-dev
 ```
 
-## 使用方法
+## Usage
 
-### 基本使用
+### Basic Usage
 
-全局安装后，直接在命令行运行：
+After global installation, run directly in the command line:
 
 ```bash
 JoeWebServer
 ```
 
-或使用小写命令：
+Or use lowercase command:
 
 ```bash
 joewebserver
 ```
 
-这将会在当前目录启动一个静态文件服务器，默认端口为7426。
+This will start a static file server in the current directory with default port 7426.
 
-### 命令行参数
+### Command Line Arguments
 
 ```bash
 JoeWebServer [options]
 ```
 
-#### 可用选项
+#### Available Options
 
-- `-p, --port <port>`: 设置服务器端口，默认7426
-- `-d, --dir <dir>`: 设置静态文件目录，默认当前目录
-- `-o, --open`: 自动打开浏览器
-- `-c, --config <config>`: 代理配置文件路径，格式: {"/api":{ target:"http://192.168.1.34:3030"}} JSON格式
-- `--proxy <proxy>`: 代理规则，格式: "[path1=target1,pathn=targetn]"，如"[/api=http://localhost:3000,/api2=http://localhost:3001]"
-- `--proxy-log <boolean>`: 是否显示代理日志，默认为true
-- `-V, --version`: 显示版本号
+- `-p, --port <port>`: Set server port, default 7426
+- `-d, --dir <dir>`: Set static file directory, default current directory
+- `-o, --open`: Auto open browser
+- `-c, --config <config>`: Proxy configuration file path, format: {"/api":{ target:"http://192.168.1.34:3030"}} JSON format
+- `--proxy <proxy>`: Proxy rules, format: "[path1=target1,pathn=targetn]", e.g. "[/api=http://localhost:3000,/api2=http://localhost:3001]"
+- `--proxy-log <boolean>`: Whether to show proxy logs, default true
+- `-V, --version`: Show version number
 
-### 使用示例
+### Usage Examples
 
-#### 指定端口
+#### Specify Port
 
 ```bash
 JoeWebServer --port 3000
 ```
 
-#### 指定目录
+#### Specify Directory
 
 ```bash
 JoeWebServer --dir ./public
 ```
 
-
-
-#### 自动打开浏览器
+#### Auto Open Browser
 
 ```bash
 JoeWebServer --open
 ```
 
-#### 结合多个选项
+#### Combine Multiple Options
 
 ```bash
 JoeWebServer --port 5000 --dir ./dist --open
 ```
 
-## 代理功能
+## Proxy Functionality
 
-JoeWebServer支持强大的代理功能，可以将特定路径的请求转发到远程服务器。
+JoeWebServer supports powerful proxy functionality, which can forward requests from specific paths to remote servers.
 
-### 使用命令行参数配置代理
+### Configure Proxy with Command Line Arguments
 
-可以使用`--proxy`参数直接指定代理规则：
+You can use the `--proxy` parameter to specify proxy rules directly:
 
 ```bash
-# 将/api路径的请求代理到http://localhost:3000
+# Proxy requests from /api path to http://localhost:3000
 JoeWebServer --proxy "/api=http://localhost:3000"
 
-# 将多个路径代理到不同的目标服务器
+# Proxy multiple paths to different target servers
 JoeWebServer --proxy "[/api=http://localhost:3000,/auth=http://auth.example.com]"
 ```
 
-### 使用配置文件配置代理
+### Configure Proxy with Configuration File
 
-创建一个代理配置文件（如`proxy.json`）：
+Create a proxy configuration file (e.g., `proxy.json`):
 
 ```json
 {
@@ -124,37 +124,37 @@ JoeWebServer --proxy "[/api=http://localhost:3000,/auth=http://auth.example.com]
 }
 ```
 
-然后使用`--config`参数指定配置文件：
+Then use the `--config` parameter to specify the configuration file:
 
 ```bash
 JoeWebServer --config proxy.json
 ```
 
-### 代理配置选项
+### Proxy Configuration Options
 
-支持的代理配置选项：
+Supported proxy configuration options:
 
-- `target`: 代理目标服务器地址
-- `changeOrigin`: 是否修改请求头中的Host字段，默认为true
-- `pathRewrite`: 路径重写规则，如`{"^/api": ""}`将/api前缀移除
-- `logLevel`: 日志级别，可选值：debug, info, warn, error, silent
-- `headers`: 自定义请求头
+- `target`: Proxy target server address
+- `changeOrigin`: Whether to modify the Host field in the request header, default true
+- `pathRewrite`: Path rewrite rules, e.g., `{"^/api": ""}` removes the /api prefix
+- `logLevel`: Log level, optional values: debug, info, warn, error, silent
+- `headers`: Custom request headers
 
-### 代理功能示例
+### Proxy Functionality Examples
 
-#### 1. API代理
+#### 1. API Proxy
 
-将所有以/api开头的请求代理到后端服务器：
+Proxy all requests starting with /api to the backend server:
 
 ```bash
 JoeWebServer --proxy /api=http://localhost:3000
 ```
 
-这样访问`http://localhost:7426/api/users`会被转发到`http://localhost:3000/api/users`。
+This way, accessing `http://localhost:7426/api/users` will be forwarded to `http://localhost:3000/api/users`.
 
-#### 2. 路径重写
+#### 2. Path Rewrite
 
-使用配置文件实现路径重写：
+Implement path rewrite using configuration file:
 
 ```json
 {
@@ -172,17 +172,17 @@ JoeWebServer --proxy /api=http://localhost:3000
 JoeWebServer --config proxy.json
 ```
 
-这样访问`http://localhost:7426/api/users`会被转发到`http://localhost:3000/users`。
+This way, accessing `http://localhost:7426/api/users` will be forwarded to `http://localhost:3000/users`.
 
-#### 3. 禁用代理日志
+#### 3. Disable Proxy Logs
 
 ```bash
 JoeWebServer --proxy /api=http://localhost:3000 --proxy-log false
 ```
 
-### 代理示例配置文件
+### Proxy Example Configuration File
 
-项目根目录下提供了`proxy.example.json`示例配置文件，您可以参考并根据需要修改：
+The project root directory provides a `proxy.example.json` sample configuration file, which you can refer to and modify as needed:
 
 ```json
 {
@@ -205,15 +205,15 @@ JoeWebServer --proxy /api=http://localhost:3000 --proxy-log false
 }
 ```
 
-## 开发说明
+## Development Notes
 
-### 核心功能实现
+### Core Function Implementation
 
-1. **静态文件服务**：使用Express的static中间件
-2. **目录列表**：自定义中间件实现目录结构展示
-3. **参数解析**：使用commander解析命令行参数
-4. **IP地址获取**：通过os模块获取本地网络IP
+1. **Static File Service**: Using Express's static middleware
+2. **Directory Listing**: Custom middleware for directory structure display
+3. **Parameter Parsing**: Using commander to parse command line arguments
+4. **IP Address Acquisition**: Getting local network IP through os module
 
-## 许可证
+## License
 
 MIT

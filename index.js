@@ -11,15 +11,15 @@ const crypto = require('crypto');
 // 解析命令行参数
 program
   .version('1.0.0')
-  .option('-p, --port <port>', '设置服务器端口', '7426')
-  .option('-d, --dir <dir>', '设置静态文件目录')
-  .option('-o, --open', '自动打开浏览器', false)
-  .option('-c, --config <config>', '代理配置文件路径，\n格式: {"/api":{ target:"http://192.168.1.34:3030"}} JSON字')
-  .option('--proxy <proxy>', '代理规则，\n格式: "[path1=target1,/*...*/,pathn=targetn]"，\n如"[/api=http://localhost:3000,/api2=http://localhost:3001]"', (value, previous) => previous.concat(value), "[]")
-  .option('--proxy-log <boolean>', '是否显示代理日志', 'true')
+  .option('-p, --port <port>', 'Set server port / 设置服务器端口', '7426')
+  .option('-d, --dir <dir>', 'Set static file directory / 设置静态文件目录')
+  .option('-o, --open', 'Auto open browser / 自动打开浏览器', false)
+  .option('-c, --config <config>', 'Proxy config file path / 代理配置文件路径,\nformat / 格式: {"/api":{ target:"http://192.168.1.34:3030"}} JSON')
+  .option('--proxy <proxy>', 'Proxy rules / 代理规则,\nformat / 格式: "[path1=target1,/*...*/,pathn=targetn]"\ne.g. "[/api=http://localhost:3000,/api2=http://localhost:3001]"', (value, previous) => previous.concat(value), "[]")
+  .option('--proxy-log <boolean>', 'Show proxy logs / 是否显示代理日志', 'true')
   .arguments('[directory]')
-  .description('静态文件目录路径（可选，默认为当前目录）', {
-    directory: '要服务的目录路径'
+  .description('Static file directory path (optional, default: current directory) / 静态文件目录路径（可选，默认为当前目录）', {
+    directory: 'Directory path to serve / 要服务的目录路径'
   })
   .parse(process.argv);
 
