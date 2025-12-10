@@ -93,7 +93,7 @@ function generateSelfSignedCertificate() {
       cert: publicKeyPem 
     };
   } catch (err) {
-    console.error(`\u001b[31m证书生成错误: ${err.message}\u001b[0m`);
+    console.error(`\u001b[31mCertificate generation error / 证书生成错误: ${err.message}\u001b[0m`)
     // 尝试使用简化的证书生成方法
     try {
       const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
@@ -123,7 +123,7 @@ function generateSelfSignedCertificate() {
         cert: forge.pki.certificateToPem(cert) 
       };
     } catch (fallbackErr) {
-      console.error(`\u001b[31m备用证书生成也失败: ${fallbackErr.message}\u001b[0m`);
+      console.error(`\u001b[31mFallback certificate generation failed / 备用证书生成也失败: ${fallbackErr.message}\u001b[0m`)
       return null;
     }
   }
@@ -143,9 +143,9 @@ if (options.config) {
   try {
     const configPath = path.resolve(options.config);
     proxyConfig = require(configPath);
-    console.log(`\u001b[33m已加载代理配置文件: ${configPath}\u001b[0m`);
+    console.log(`\u001b[33mLoaded proxy config file / 已加载代理配置文件: ${configPath}\u001b[0m`)
   } catch (error) {
-    console.error(`\u001b[31m加载代理配置文件失败: ${error.message}\u001b[0m`);
+    console.error(`\u001b[31mFailed to load proxy config file / 加载代理配置文件失败: ${error.message}\u001b[0m`)
   }
 }
 
@@ -174,7 +174,7 @@ if (options.proxy) {
         }
       }
     } catch (error) {
-      console.error(`\u001b[31m解析代理规则失败: ${error.message}\u001b[0m`);
+      console.error(`\u001b[31mFailed to parse proxy rule / 解析代理规则失败: ${error.message}\u001b[0m`)
     }
   });
 }
@@ -238,9 +238,9 @@ if (proxyConfig && Object.keys(proxyConfig).length > 0) {
       },
       onError: (err, req, res) => {
         if (proxyLog) {
-          console.error(`\u001b[31m代理错误: ${err.message}\u001b[0m`);
+          console.error(`\u001b[31mProxy error / 代理服务器错误: ${err.message}\u001b[0m`)
         }
-        res.status(500).send('代理服务器错误');
+        res.status(500).send('Proxy server error / 代理服务器错误')
       }
     }));
   }
@@ -295,7 +295,7 @@ app.use(async (req, res, next) => {
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>目录列表 - ${req.path}</title>
+            <title>Directory Listing - ${req.path}</title>
             <style>
               body {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -340,7 +340,7 @@ app.use(async (req, res, next) => {
             </style>
           </head>
           <body>
-            <h1>目录列表 - ${req.path}</h1>
+            <h1>Directory Listing - ${req.path}</h1>
             <div class="dir-list">
               ${req.path !== '/' ? `<div class="dir-item"><span class="icon">📁</span><a href="${path.dirname(req.path) || '/'}">..</a></div>` : ''}
               ${filteredFiles.map(file => {
@@ -400,7 +400,7 @@ app.use((req, res) => {
     <body>
       <div class="error-container">
         <h1>404</h1>
-        <p>页面未找到</p>
+        <p>Page not found / 页面未找到</p>
       </div>
     </body>
     </html>
@@ -421,7 +421,7 @@ async function startServer() {
             output: process.stdout
           });
 
-          rl.question('是否使用默认目录(当前目录)？[Y/n]: ', (input) => {
+          rl.question('Use default directory (current directory)? [Y/n]: ', (input) => {
             rl.close();
             const response = input.trim().toLowerCase();
             resolve(response === '' || response === 'y' || response === 'yes');
@@ -437,13 +437,13 @@ async function startServer() {
             });
 
             const askDirectory = () => {
-              rl.question('请输入要服务的目录路径: ', (input) => {
+              rl.question('Please enter the directory path to serve: ', (input) => {
                 const dir = path.resolve(input.trim());
                 if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
                   rl.close();
                   resolve(dir);
                 } else {
-                  console.log('\u001b[31m错误: 请输入有效的目录路径\u001b[0m');
+                  console.log('\u001b[31mError: Please enter a valid directory path / 错误: 请输入有效的目录路径\u001b[0m')
                   askDirectory();
                 }
               });
@@ -460,7 +460,7 @@ async function startServer() {
       }
     } catch (error) {
       // 发生任何错误时，使用默认目录但显示警告
-      console.log(`\u001b[33m目录选择出错: ${error.message}，使用默认目录\u001b[0m`);
+      console.log(`\u001b[33mDirectory selection erro / 目录选择出错r: ${error.message}, using default directory / 使用默认目录\u001b[0m`)
     }
   }
 
@@ -474,8 +474,8 @@ async function startServer() {
     console.log('\u001b[36m----------------------------------------\u001b[0m');
     console.log('\u001b[36m            Joe Web Server\u001b[0m');
     console.log('\u001b[36m========================================\u001b[0m');
-    console.log(`\u001b[32m  启动目录: ${staticDir}\u001b[0m`);
-    console.log(`\u001b[33m  访问地址: ${httpServerUrl}\u001b[0m`);
+    console.log(`\u001b[32m  Start Directory / 启动目录: ${staticDir}\u001b[0m`)
+    console.log(`\u001b[33m  Access Address / 访问地址: ${httpServerUrl}\u001b[0m`)
     
     // 打印代理配置（如果有）
     if (proxyConfig && Object.keys(proxyConfig).length > 0) {
@@ -484,7 +484,7 @@ async function startServer() {
         let index = arr.findIndex(item => item === path);
         const target = proxyConfig[path].target || proxyConfig[path];
         index == 0 
-        ? console.log(`\u001b[33m  代理配置: ${path}  >>>  ${target}\u001b[0m`)
+        ? console.log(`\u001b[33m  Proxy Config / 代理配置: ${path}  >>>  ${target}\u001b[0m`)
         : console.log(`\u001b[33m            ${path}  >>>  ${target}\u001b[0m`);
       }
     }
@@ -496,17 +496,17 @@ async function startServer() {
     // 自动打开浏览器（使用HTTP）
     if (options.open) {
       open(httpServerUrl).catch(err => {
-        console.warn(`\u001b[33m无法自动打开浏览器: ${err.message}\u001b[0m`);
+        console.warn(`\u001b[33mFailed to open browser automatically / 无法自动打开浏览器: ${err.message}\u001b[0m`);
       });
     }
   });
 
   // 处理HTTP服务器错误
   server.on('error', (error) => {
-    console.error(`\u001b[31mHTTP服务器启动错误: ${error.message}\u001b[0m`);
-    // 如果是端口被占用错误，可以提示用户尝试其他端口
+    console.error(`\u001b[31mHTTP server start error / HTTP服务器启动错误: ${error.message}\u001b[0m`);
+    // If port is already in use, suggest user to try another port
     if (error.code === 'EADDRINUSE') {
-      console.error(`\u001b[31m端口 ${port} 已被占用，请尝试其他端口\u001b[0m`);
+      console.error(`\u001b[31mPort ${port} is already in use, please try another port / 端口 ${port} 已被占用，请尝试其他端口\u001b[0m`);
     }
   });
 
@@ -524,23 +524,23 @@ async function startServer() {
       });
       
       httpsServer.on('error', (error) => {
-        console.error(`\u001b[31mHTTPS服务器启动错误: ${error.message}\u001b[0m`);
+        console.error(`\u001b[31mHTTPS server start error / HTTPS服务器启动错误: ${error.message}\u001b[0m`);
         if (error.code === 'EADDRINUSE') {
-          console.error(`\u001b[31m端口 ${httpsPort} 已被占用，请尝试其他端口\u001b[0m`);
+          console.error(`\u001b[31mPort ${httpsPort} is already in use, please try another port / 端口 ${httpsPort} 已被占用，请尝试其他端口\u001b[0m`);
         }
       });
     } else {
-      console.error(`\u001b[31mHTTPS服务器启动失败：无法生成自签名证书\u001b[0m`);
-      console.log(`\u001b[33mHTTP服务仍可正常使用\u001b[0m`);
+      console.error(`\u001b[31mHTTPS server startup failed: Unable to generate self-signed certificate / HTTPS服务器启动失败：无法生成自签名证书\u001b[0m`);
+      console.log(`\u001b[33mHTTP service is still available / HTTP服务仍可正常使用\u001b[0m`);
     }
   } catch (err) {
-    console.error(`\u001b[31mHTTPS服务器启动失败: ${err.message}\u001b[0m`);
-    console.log(`\u001b[33mHTTP服务仍可正常使用\u001b[0m`);
+    console.error(`\u001b[31mHTTPS server startup failed / HTTPS服务器启动失败: ${err.message}\u001b[0m`);
+    console.log(`\u001b[33mHTTP service is still available / HTTP服务仍可正常使用\u001b[0m`);
   }
 }
 
 // 调用startServer函数启动服务器
 startServer().catch(error => {
-  console.error('\u001b[31m启动服务器时出错:', error, '\u001b[0m');
+  console.error('\u001b[31mError starting server / 启动服务器时出错:', error, '\u001b[0m');
   process.exit(1);
 });
