@@ -1,8 +1,21 @@
 # JoeWebServer
 
-A static file server based on Node.js Express framework with local proxy support.
+A static file server based on the nodejs express framework, supporting local proxy functionality.
 
-[中文文档 (Chinese Documentation)](README.zh.md)
+## System Requirements
+
+### Node.js Version Requirement
+- Requires **Node.js 16.x or higher**. We recommend using the latest LTS version for best performance and security.
+
+### Installing Node.js
+1. Download the latest Node.js LTS version from the [official website](https://nodejs.org/)
+2. Follow the installation instructions for your operating system
+3. Verify installation by running:
+   ```bash
+   node -v
+   npm -v
+   ```
+   Both commands should return version numbers.
 
 ## Features
 

@@ -3,10 +3,15 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { program } = require('commander');
-const open = require('open');
-const os = require('os');
-const readline = require('readline');
-const crypto = require('crypto');
+
+// 导入模块
+const { generateSelfSignedCertificate } = require('./modules/certificate');
+const { getIpAddress } = require('./modules/ipUtils');
+const { loadProxyConfig, applyProxyMiddleware } = require('./modules/proxyConfig');
+const { loggerMiddleware } = require('./modules/middleware');
+const { directoryListMiddleware, notFoundMiddleware } = require('./modules/directoryHandler');
+const { startHttpServer, startHttpsServer, showServerInfo, autoOpenBrowser } = require('./modules/serverUtils');
+const { handleDirectorySelection } = require('./modules/inquirerHelper');
 
 // 解析命令行参数
 program
@@ -15,7 +20,7 @@ program
   .option('-d, --dir <dir>', 'Set static file directory / 设置静态文件目录')
   .option('-o, --open', 'Auto open browser / 自动打开浏览器', false)
   .option('-c, --config <config>', 'Proxy config file path / 代理配置文件路径,\nformat / 格式: {"/api":{ target:"http://192.168.1.34:3030"}} JSON')
-  .option('--proxy <proxy>', 'Proxy rules / 代理规则,\nformat / 格式: "[path1=target1,/*...*/,pathn=targetn]"\ne.g. "[/api=http://localhost:3000,/api2=http://localhost:3001]"', (value, previous) => previous.concat(value), "[]")
+  .option('--proxy <proxy>', 'Proxy rules / 代理规则, format / 格式: "[path1=target1,/*...*/,pathn=targetn]" e.g. "[/api=http://localhost:3000,/api2=http://localhost:3001]"')
   .option('--proxy-log <boolean>', 'Show proxy logs / 是否显示代理日志', 'true')
   .arguments('[directory]')
   .description('Static file directory path (optional, default: current directory) / 静态文件目录路径（可选，默认为当前目录）', {
@@ -23,228 +28,22 @@ program
   })
   .parse(process.argv);
 
-// 生成自签名证书函数
-function generateSelfSignedCertificate() {
-  try {
-    // 使用crypto生成真正的自签名证书
-    const forge = require('node-forge');
-    
-    // 创建RSA密钥对
-    const keys = forge.pki.rsa.generateKeyPair(2048);
-    
-    // 创建证书
-    const cert = forge.pki.createCertificate();
-    cert.publicKey = keys.publicKey;
-    cert.serialNumber = '01';
-    cert.validity.notBefore = new Date();
-    cert.validity.notAfter = new Date();
-    cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
-    
-    // 设置证书属性
-    const attrs = [
-      { name: 'commonName', value: 'localhost' },
-      { name: 'countryName', value: 'CN' },
-      { shortName: 'ST', value: 'Beijing' },
-      { name: 'localityName', value: 'Beijing' },
-      { name: 'organizationName', value: 'Joe Web Server' },
-      { shortName: 'OU', value: 'Development' }
-    ];
-    cert.setSubject(attrs);
-    cert.setIssuer(attrs); // 自签名证书
-    
-    // 添加扩展
-    cert.setExtensions([
-      {
-        name: 'basicConstraints',
-        cA: true
-      },
-      {
-        name: 'keyUsage',
-        keyCertSign: true,
-        digitalSignature: true,
-        nonRepudiation: true,
-        keyEncipherment: true,
-        dataEncipherment: true
-      },
-      {
-        name: 'extKeyUsage',
-        serverAuth: true,
-        clientAuth: true
-      },
-      {
-        name: 'subjectAltName',
-        altNames: [
-          { type: 2, value: 'localhost' },
-          { type: 7, ip: '127.0.0.1' },
-          { type: 7, ip: '0.0.0.0' }
-        ]
-      }
-    ]);
-    
-    // 自签名证书
-    cert.sign(keys.privateKey);
-    
-    // 转换为PEM格式
-    const privateKeyPem = forge.pki.privateKeyToPem(keys.privateKey);
-    const publicKeyPem = forge.pki.certificateToPem(cert);
-    
-    return { 
-      key: privateKeyPem, 
-      cert: publicKeyPem 
-    };
-  } catch (err) {
-    console.error(`\u001b[31mCertificate generation error / 证书生成错误: ${err.message}\u001b[0m`)
-    // 尝试使用简化的证书生成方法
-    try {
-      const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-        modulusLength: 2048,
-        publicKeyEncoding: { type: 'spki', format: 'pem' },
-        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-      });
-      
-      // 使用node-forge简化版生成证书
-      const forge = require('node-forge');
-      const cert = forge.pki.createCertificate();
-      cert.publicKey = forge.pki.publicKeyFromPem(publicKey);
-      cert.serialNumber = '01';
-      cert.validity.notBefore = new Date();
-      cert.validity.notAfter = new Date();
-      cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
-      
-      const attrs = [
-        { name: 'commonName', value: 'localhost' }
-      ];
-      cert.setSubject(attrs);
-      cert.setIssuer(attrs);
-      cert.sign(forge.pki.privateKeyFromPem(privateKey));
-      
-      return { 
-        key: privateKey, 
-        cert: forge.pki.certificateToPem(cert) 
-      };
-    } catch (fallbackErr) {
-      console.error(`\u001b[31mFallback certificate generation failed / 备用证书生成也失败: ${fallbackErr.message}\u001b[0m`)
-      return null;
-    }
-  }
-}
-
 const options = program.opts();
 const app = express();
 const port = options.port;
-const httpsPort = parseInt(port) + 1;
-
-// 加载代理配置
-let proxyConfig = {};
-let proxyLog = options.proxyLog === 'true';
-
-// 1. 从配置文件加载代理配置
-if (options.config) {
-  try {
-    const configPath = path.resolve(options.config);
-    proxyConfig = require(configPath);
-    console.log(`\u001b[33mLoaded proxy config file / 已加载代理配置文件: ${configPath}\u001b[0m`)
-  } catch (error) {
-    console.error(`\u001b[31mFailed to load proxy config file / 加载代理配置文件失败: ${error.message}\u001b[0m`)
-  }
-}
-
-// 2. 从命令行参数加载代理配置
-if (options.proxy) {
-  // 处理多个--proxy参数的情况（会是数组）
-  const proxyRules = Array.isArray(options.proxy) ? options.proxy : [options.proxy];
-  
-  proxyRules.forEach(rule => {
-    try {
-      // 处理数组格式的代理规则，如: [/api=http://localhost:3000,/api2=http://localhost:3001]
-      if (rule.startsWith('[') && rule.endsWith(']')) {
-        // 移除方括号并分割多个规则
-        const innerRules = rule.substring(1, rule.length - 1).split(',');
-        innerRules.forEach(innerRule => {
-          const [path, target] = innerRule.split('=');
-          if (path && target) {
-            proxyConfig[path.trim()] = { target: target.trim() };
-          }
-        });
-      } else {
-        // 处理单个规则格式，如: /api=http://localhost:3000
-        const [path, target] = rule.split('=');
-        if (path && target) {
-          proxyConfig[path.trim()] = { target: target.trim() };
-        }
-      }
-    } catch (error) {
-      console.error(`\u001b[31mFailed to parse proxy rule / 解析代理规则失败: ${error.message}\u001b[0m`)
-    }
-  });
-}
-
-
 
 // 立即初始化静态目录，避免中间件配置错误
 // 只有通过 -d, --dir 参数明确指定的才作为目录，避免将额外参数误判为目录
 let staticDir = options.dir || '.';
 
-// 获取本地IP地址
-function getIpAddress() {
-  const ifaces = os.networkInterfaces();
-  for (const dev in ifaces) {
-    const iface = ifaces[dev];
-    for (let i = 0; i < iface.length; i++) {
-      const { family, address, internal } = iface[i];
-      if (family === 'IPv4' && address !== '127.0.0.1' && !internal) {
-        return address;
-      }
-    }
-  }
-  return '127.0.0.1';
-}
+// 加载代理配置
+const { proxyConfig, proxyLog } = loadProxyConfig(options);
 
-// 中间件：日志功能
-app.use((req, res, next) => {
-  console.log(`\u001b[32m${new Date().toLocaleString()} - ${req.method} ${req.url}\u001b[0m`);
-  next();
-});
+// 应用中间件
+app.use(loggerMiddleware);
 
 // 应用代理中间件
-if (proxyConfig && Object.keys(proxyConfig).length > 0) {
-  const hostname = getIpAddress();
-  const addr = `http://${hostname}:${port}`;
-  
-  // 遍历代理配置，直接创建并应用代理中间件
-  for (let path in proxyConfig) {
-    // 确保配置是对象格式
-    let config = proxyConfig[path];
-    if (typeof config === 'string') {
-      // 如果是字符串格式，直接作为target
-      config = { target: config };
-    }
-    
-    // 创建并应用代理中间件
-    // 使用通配符确保所有以代理路径开头的请求都能被匹配
-    app.use(path + (path.endsWith('/') ? '*' : '/*'), require('http-proxy-middleware').createProxyMiddleware({
-      target: config.target,
-      changeOrigin: config.changeOrigin !== false,
-      // 重写路径，保留完整的原始路径
-      pathRewrite: config.pathRewrite || function(pathStr, req) {
-        // 对于 /api/users，将 /api/* 重写为 /api/users
-        return req.originalUrl;
-      },
-      logLevel: proxyLog ? 'info' : 'silent',
-      onProxyReq: (proxyReq, req, res) => {
-        if (proxyLog) {
-          console.log(`\u001b[34m代理请求: "${addr}${req.originalUrl}" -> "${config.target}${req.originalUrl}"\u001b[0m`);
-        }
-      },
-      onError: (err, req, res) => {
-        if (proxyLog) {
-          console.error(`\u001b[31mProxy error / 代理服务器错误: ${err.message}\u001b[0m`)
-        }
-        res.status(500).send('Proxy server error / 代理服务器错误')
-      }
-    }));
-  }
-}
+applyProxyMiddleware(app, proxyConfig, proxyLog, port, getIpAddress);
 
 // 配置静态文件服务
 app.use(express.static(staticDir, {
@@ -262,273 +61,47 @@ app.use(express.static(staticDir, {
   }
 }));
 
+// 设置静态目录到app实例中，供中间件使用
+app.set('staticDir', staticDir);
+
 // 实现目录列表功能
-app.use(async (req, res, next) => {
-  try {
-    const requestedPath = path.join(staticDir, req.path);
-    const fs = require('fs').promises;
-    const stats = await fs.stat(requestedPath);
-    
-    if (stats.isDirectory()) {
-      // 检查是否有index.html文件
-      try {
-        await fs.access(path.join(requestedPath, 'index.html'));
-        // 如果有index.html，让static中间件处理
-        next();
-        return;
-      } catch (e) {
-        // 没有index.html，显示目录列表
-        const files = await fs.readdir(requestedPath);
-        const filteredFiles = files.filter(file => 
-          file !== '.DS_Store' && 
-          file !== '.git' && 
-          file !== '.gitignore' && 
-          file !== '.idea' && 
-          file !== 'node_modules' &&
-          file !== 'package-lock.json'
-        );
-        
-        // 生成目录列表HTML
-        res.status(200).send(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Directory Listing - ${req.path}</title>
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                margin: 0;
-                padding: 20px;
-                background-color: #f5f5f5;
-              }
-              h1 {
-                color: #333;
-                border-bottom: 1px solid #ddd;
-                padding-bottom: 10px;
-              }
-              .dir-list {
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                padding: 0;
-                margin-top: 20px;
-              }
-              .dir-item {
-                padding: 12px 20px;
-                border-bottom: 1px solid #eee;
-                display: flex;
-                align-items: center;
-              }
-              .dir-item:last-child {
-                border-bottom: none;
-              }
-              .dir-item a {
-                text-decoration: none;
-                color: #0366d6;
-                font-size: 16px;
-              }
-              .dir-item a:hover {
-                text-decoration: underline;
-              }
-              .icon {
-                margin-right: 10px;
-                width: 20px;
-                text-align: center;
-              }
-            </style>
-          </head>
-          <body>
-            <h1>Directory Listing - ${req.path}</h1>
-            <div class="dir-list">
-              ${req.path !== '/' ? `<div class="dir-item"><span class="icon">📁</span><a href="${path.dirname(req.path) || '/'}">..</a></div>` : ''}
-              ${filteredFiles.map(file => {
-                const filePath = path.join(req.path, file);
-                return `<div class="dir-item"><span class="icon">📄</span><a href="${filePath}">${file}</a></div>`;
-              }).join('')}
-            </div>
-          </body>
-          </html>
-        `);
-      }
-    } else {
-      next();
-    }
-  } catch (e) {
-    next();
-  }
-});
+app.use(directoryListMiddleware);
 
 // 404处理
-app.use((req, res) => {
-  res.status(404).send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>404 Not Found</title>
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          margin: 0;
-          background-color: #f5f5f5;
-        }
-        .error-container {
-          text-align: center;
-          background: white;
-          padding: 40px;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-          font-size: 4rem;
-          color: #e74c3c;
-          margin: 0;
-        }
-        p {
-          font-size: 1.2rem;
-          color: #555;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="error-container">
-        <h1>404</h1>
-        <p>Page not found / 页面未找到</p>
-      </div>
-    </body>
-    </html>
-  `);
-});
+app.use(notFoundMiddleware);
 
 // 主函数，支持异步询问
 async function startServer() {
-  // 如果是默认目录，可以在交互式环境中询问用户是否要更改
-  if (staticDir === '.') {
-    try {
-      // 检查是否为交互式终端，同时允许通过环境变量强制非交互模式（用于测试）
-        if (process.stdin.isTTY && !process.env.FORCE_NON_INTERACTIVE) {
-        // 在交互式环境中，询问用户是否要更改默认目录
-        const useDefault = await new Promise((resolve) => {
-          const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-          });
-
-          rl.question('Use default directory (current directory)? [Y/n]: ', (input) => {
-            rl.close();
-            const response = input.trim().toLowerCase();
-            resolve(response === '' || response === 'y' || response === 'yes');
-          });
-        });
-
-        // 如果用户不想使用默认目录，再询问具体目录
-        if (!useDefault) {
-          const newDir = await new Promise((resolve) => {
-            const rl = readline.createInterface({
-              input: process.stdin,
-              output: process.stdout
-            });
-
-            const askDirectory = () => {
-              rl.question('Please enter the directory path to serve: ', (input) => {
-                const dir = path.resolve(input.trim());
-                if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
-                  rl.close();
-                  resolve(dir);
-                } else {
-                  console.log('\u001b[31mError: Please enter a valid directory path / 错误: 请输入有效的目录路径\u001b[0m')
-                  askDirectory();
-                }
-              });
-            };
-
-            askDirectory();
-          });
-
-          staticDir = newDir;
-        }
-      } else {
-        // 在非交互式环境中，明确使用默认目录
-        // console.log('\u001b[33m使用默认目录: 当前目录\u001b[0m');
-      }
-    } catch (error) {
-      // 发生任何错误时，使用默认目录但显示警告
-      console.log(`\u001b[33mDirectory selection erro / 目录选择出错r: ${error.message}, using default directory / 使用默认目录\u001b[0m`)
-    }
-  }
-
-  // 确保路径解析正确
-  staticDir = path.resolve(staticDir);
+  // 处理目录选择
+  staticDir = await handleDirectorySelection(options, staticDir);
+  
+  // 更新app实例中的静态目录
+  app.set('staticDir', staticDir);
+  
   const ipAddress = getIpAddress();
-  const httpServerUrl = `http://${ipAddress}:${port}`;
 
-  // 启动HTTP服务器
-  const server = app.listen(port, () => {
-    console.log('\u001b[36m----------------------------------------\u001b[0m');
-    console.log('\u001b[36m            Joe Web Server\u001b[0m');
-    console.log('\u001b[36m========================================\u001b[0m');
-    console.log(`\u001b[32m  Start Directory / 启动目录: ${staticDir}\u001b[0m`)
-    console.log(`\u001b[33m  Access Address / 访问地址: ${httpServerUrl}\u001b[0m`)
-    
-    // 打印代理配置（如果有）
-    if (proxyConfig && Object.keys(proxyConfig).length > 0) {
-      let arr = Object.keys(proxyConfig);
-      for (const path in proxyConfig) {
-        let index = arr.findIndex(item => item === path);
-        const target = proxyConfig[path].target || proxyConfig[path];
-        index == 0 
-        ? console.log(`\u001b[33m  Proxy Config / 代理配置: ${path}  >>>  ${target}\u001b[0m`)
-        : console.log(`\u001b[33m            ${path}  >>>  ${target}\u001b[0m`);
-      }
-    }
-    
-    console.log('\u001b[36m========================================\u001b[0m');
-    console.log(`\u001b[35m           qiao_915@yeah.net\u001b[0m`);
-    console.log('\u001b[36m----------------------------------------\u001b[0m');
-    
-    // 自动打开浏览器（使用HTTP）
-    if (options.open) {
-      open(httpServerUrl).catch(err => {
-        console.warn(`\u001b[33mFailed to open browser automatically / 无法自动打开浏览器: ${err.message}\u001b[0m`);
-      });
-    }
-  });
-
-  // 处理HTTP服务器错误
-  server.on('error', (error) => {
+  // 启动HTTP服务器（自动尝试可用端口）
+  let serverResult;
+  try {
+    serverResult = await startHttpServer(app, parseInt(port));
+  } catch (error) {
     console.error(`\u001b[31mHTTP server start error / HTTP服务器启动错误: ${error.message}\u001b[0m`);
-    // If port is already in use, suggest user to try another port
-    if (error.code === 'EADDRINUSE') {
-      console.error(`\u001b[31mPort ${port} is already in use, please try another port / 端口 ${port} 已被占用，请尝试其他端口\u001b[0m`);
-    }
-  });
-
-  // 启动HTTPS服务器
+    process.exit(1);
+  }
+  
+  const server = serverResult.server;
+  const actualPort = serverResult.port;
+  const httpServerUrl = `http://${ipAddress}:${actualPort}`;
+  
+  // HTTPS服务器功能
+  let httpsServerUrl = null;
   try {
     // 生成自签名证书
     const certOptions = generateSelfSignedCertificate();
     if (certOptions) {
-      const https = require('https');
-      
-      const httpsServer = https.createServer(certOptions, app);
-      
-      httpsServer.listen(httpsPort, () => {
-        // HTTPS服务器启动成功
-      });
-      
-      httpsServer.on('error', (error) => {
-        console.error(`\u001b[31mHTTPS server start error / HTTPS服务器启动错误: ${error.message}\u001b[0m`);
-        if (error.code === 'EADDRINUSE') {
-          console.error(`\u001b[31mPort ${httpsPort} is already in use, please try another port / 端口 ${httpsPort} 已被占用，请尝试其他端口\u001b[0m`);
-        }
-      });
+      // 尝试为HTTPS服务器找到可用端口
+      const httpsPortResult = await startHttpsServer(app, actualPort, certOptions);
+      httpsServerUrl = `https://${ipAddress}:${httpsPortResult}`;
     } else {
       console.error(`\u001b[31mHTTPS server startup failed: Unable to generate self-signed certificate / HTTPS服务器启动失败：无法生成自签名证书\u001b[0m`);
       console.log(`\u001b[33mHTTP service is still available / HTTP服务仍可正常使用\u001b[0m`);
@@ -536,6 +109,14 @@ async function startServer() {
   } catch (err) {
     console.error(`\u001b[31mHTTPS server startup failed / HTTPS服务器启动失败: ${err.message}\u001b[0m`);
     console.log(`\u001b[33mHTTP service is still available / HTTP服务仍可正常使用\u001b[0m`);
+  }
+
+  // 显示服务器启动信息
+  showServerInfo(staticDir, httpServerUrl, httpsServerUrl, proxyConfig);
+  
+  // 自动打开浏览器（使用HTTP）
+  if (options.open) {
+    autoOpenBrowser(httpServerUrl);
   }
 }
 
