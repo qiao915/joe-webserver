@@ -1,6 +1,6 @@
 {
   "name": "joe-webserver",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "基于 nodejs express 框架的 Joe Web Server 静态文件服务器，支持本地代理功能",
   "main": "index.js",
   "repository": {
@@ -8,6 +8,7 @@
     "url": "git+https://github.com/qiao915/joe-webserver.git"
   },
   "bin": {
+    "joe-webserver": "index.js",
     "joewebserver": "index.js",
     "JoeWebServer": "index.js"
   },
