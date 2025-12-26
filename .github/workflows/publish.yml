@@ -1,0 +1,44 @@
+# GitHub Actions 自动化发布到 npm
+
+name: Publish to npm
+
+on:
+  # 当推送到master分支时触发
+  push:
+    branches: [ master ]
+  # 当创建标签时触发（推荐使用标签发布）
+  release:
+    types: [ created ]
+  # 手动触发
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # 可信发布必须的权限：id-token用于OIDC身份验证
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      # 检出代码
+      - name: 检出master分支代码
+        uses: actions/checkout@v4
+      
+      # 设置Node.js环境
+      - name: 设置Node.js环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          registry-url: https://registry.npmjs.org/
+      
+      # 安装依赖（使用npm ci确保依赖一致性）
+      - name: 安装依赖
+        run: npm ci
+      
+      # 运行测试（如果有）
+      - name: 运行测试
+        run: npm test
+
+      # 发布到npm（使用Trusted Publisher OIDC认证）
+      - name: 发布到npm
+        run: npm publish --access public
