@@ -35,6 +35,8 @@ jobs:
       - name: 安装依赖
         run: npm ci
       
-      # 发布到npm（使用Trusted Publisher OIDC认证）
+      # 发布到npm（使用NPM_TOKEN环境变量）
       - name: 发布到npm
         run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
