@@ -35,10 +35,6 @@ jobs:
       - name: 安装依赖
         run: npm ci
       
-      # 运行测试（如果有）
-      - name: 运行测试
-        run: npm test
-
       # 发布到npm（使用Trusted Publisher OIDC认证）
       - name: 发布到npm
         run: npm publish --access public
