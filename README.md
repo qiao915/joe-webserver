@@ -1,6 +1,8 @@
 # JoeWebServer
 
 A static file server based on the nodejs express framework, supporting local proxy functionality.
+[中文文档 (Chinese Documentation)](README.zh.md)
+
 
 ## System Requirements
 
