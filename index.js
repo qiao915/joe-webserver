@@ -13,9 +13,13 @@ const { directoryListMiddleware, notFoundMiddleware } = require('./modules/direc
 const { startHttpServer, startHttpsServer, showServerInfo, autoOpenBrowser } = require('./modules/serverUtils');
 const { handleDirectorySelection } = require('./modules/inquirerHelper');
 
+// 从package.json读取版本号
+const packageJson = require('./package.json');
+const version = packageJson.version;
+
 // 解析命令行参数
 program
-  .version('1.0.0')
+  .version(version)
   .option('-p, --port <port>', 'Set server port / 设置服务器端口', '7426')
   .option('-d, --dir <dir>', 'Set static file directory / 设置静态文件目录')
   .option('-o, --open', 'Auto open browser / 自动打开浏览器', false)
