@@ -79,7 +79,7 @@ async function startHttpsServer(app, startingPort, certOptions) {
 }
 
 // 显示服务器启动信息
-function showServerInfo(staticDir, httpServerUrl, httpsServerUrl, proxyConfig) {
+function showServerInfo(staticDir, httpServerUrl, httpsServerUrl, proxyConfig, enableLogApi) {
   console.log('\u001b[36m------------------------------------------------------\u001b[0m');
   console.log('\u001b[36m                   Joe Web Server\u001b[0m');
   console.log('\u001b[36m======================================================\u001b[0m');
@@ -89,6 +89,12 @@ function showServerInfo(staticDir, httpServerUrl, httpsServerUrl, proxyConfig) {
   // 打印HTTPS地址
   if (httpsServerUrl) {
     console.log(`\u001b[33m  HTTPS Address / HTTPS地址: ${httpsServerUrl}\u001b[0m`);
+    
+    // 打印日志接口地址（如果启用）
+    if (enableLogApi) {
+      const logApiUrl = httpsServerUrl.replace(/:\d+$/, `:${parseInt(httpsServerUrl.match(/:(\d+)/)[1])}/jws/logs`);
+      console.log(`\u001b[35m  Log API / 日志接口: ${logApiUrl}\u001b[0m`);
+    }
   }
   
   // 打印代理配置（如果有）

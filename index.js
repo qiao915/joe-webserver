@@ -8,7 +8,7 @@ const { program } = require('commander');
 const { generateSelfSignedCertificate } = require('./modules/certificate');
 const { getIpAddress } = require('./modules/ipUtils');
 const { loadProxyConfig, applyProxyMiddleware } = require('./modules/proxyConfig');
-const { loggerMiddleware } = require('./modules/middleware');
+const { loggerMiddleware, logCollectionMiddleware } = require('./modules/middleware');
 const { directoryListMiddleware, notFoundMiddleware } = require('./modules/directoryHandler');
 const { startHttpServer, startHttpsServer, showServerInfo, autoOpenBrowser } = require('./modules/serverUtils');
 const { handleDirectorySelection } = require('./modules/inquirerHelper');
@@ -26,6 +26,7 @@ program
   .option('-c, --config <config>', 'Proxy config file path / 代理配置文件路径,\nformat / 格式: {"/api":{ target:"http://192.168.1.34:3030"}} JSON')
   .option('--proxy <proxy>', 'Proxy rules / 代理规则, format / 格式: "[path1=target1,/*...*/,pathn=targetn]" e.g. "[/api=http://localhost:3000,/api2=http://localhost:3001]"')
   .option('--proxy-log <boolean>', 'Show proxy logs / 是否显示代理日志', 'true')
+  .option('--enable-log-api', 'Enable log collection API / 启用日志收集接口', false)
   .arguments('[directory]')
   .description('Static file directory path (optional, default: current directory) / 静态文件目录路径（可选，默认为当前目录）', {
     directory: 'Directory path to serve / 要服务的目录路径'
@@ -46,8 +47,15 @@ const { proxyConfig, proxyLog } = loadProxyConfig(options);
 // 应用中间件
 app.use(loggerMiddleware);
 
+// 添加body解析中间件（用于日志接口的POST请求）
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // 应用代理中间件
 applyProxyMiddleware(app, proxyConfig, proxyLog, port, getIpAddress);
+
+// 应用日志收集接口中间件（在静态文件服务之前）
+logCollectionMiddleware(app, options.enableLogApi);
 
 // 配置静态文件服务
 app.use(express.static(staticDir, {
@@ -116,7 +124,7 @@ async function startServer() {
   }
 
   // 显示服务器启动信息
-  showServerInfo(staticDir, httpServerUrl, httpsServerUrl, proxyConfig);
+  showServerInfo(staticDir, httpServerUrl, httpsServerUrl, proxyConfig, options.enableLogApi);
   
   // 自动打开浏览器（使用HTTP）
   if (options.open) {

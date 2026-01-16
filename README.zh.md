@@ -22,6 +22,7 @@
 - 🔹 **静态文件服务**：快速将当前目录变成静态文件服务器
 - 🔹 **目录列表**：美观的目录结构展示
 - 🔹 **代理功能**：支持将特定路径的请求转发到远程服务器
+- 🔹 **日志收集接口**：内置日志收集接口，方便调试和监控
 - 🔹 **自定义配置**：支持自定义端口、目录、代理等参数
 - 🔹 **自动打开浏览器**：可选的浏览器自动打开功能
 - 🔹 **彩色日志**：清晰的彩色日志输出
@@ -49,12 +50,12 @@ npm install joe-webserver --save-dev
 
 ```bash
 JoeWebServer
-```
-
-或使用小写命令：
-
-```bash
+# 或者
 joewebserver
+# 或者
+joe-webserver
+# 或者
+jws
 ```
 
 这将会在当前目录启动一个静态文件服务器，默认端口为7426。
@@ -73,6 +74,7 @@ JoeWebServer [options]
 - `-c, --config <config>`: 代理配置文件路径，格式: {"/api":{ target:"http://192.168.1.34:3030"}} JSON格式
 - `--proxy <proxy>`: 代理规则，格式: "[path1=target1,pathn=targetn]"，如"[/api=http://localhost:3000,/api2=http://localhost:3001]"
 - `--proxy-log <boolean>`: 是否显示代理日志，默认为true
+- `--enable-log-api`: 启用日志收集接口，默认为false 关闭状态
 - `-V, --version`: 显示版本号
 
 ### 使用示例
@@ -220,6 +222,107 @@ JoeWebServer --proxy /api=http://localhost:3000 --proxy-log false
 }
 ```
 
+## 日志收集接口
+
+JoeWebServer提供了内置的日志收集接口（`/jws/logs`），用于调试和监控目的。该接口允许客户端向服务器发送日志数据，日志将在控制台中显示。
+
+### 启用日志收集接口
+
+要启用日志收集接口，使用`--enable-log-api`标志：
+
+```bash
+JoeWebServer --enable-log-api
+```
+
+启用后，日志接口端点将在服务器启动信息中显示：
+
+```
+Log API / 日志接口: https://192.168.1.86:7429/jws/logs
+```
+
+### API端点
+
+- **URL**: `/jws/logs`
+- **方法**: GET, POST, OPTIONS
+- **CORS**: 已启用（允许跨域请求）
+
+### 使用示例
+
+#### 1. GET请求
+
+通过查询参数发送日志数据：
+
+```bash
+curl "http://localhost:7428/jws/logs?data=这是一条测试日志"
+```
+
+或使用不同的参数名称：
+
+```bash
+curl "http://localhost:7428/jws/logs?log=发生错误"
+curl "http://localhost:7428/jws/logs?msg=调试信息"
+```
+
+#### 2. POST请求
+
+通过请求体发送日志数据：
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"message":"这是一条POST日志","level":"info"}' \
+  "http://localhost:7428/jws/logs"
+```
+
+#### 3. JavaScript示例
+
+```javascript
+// 通过GET发送日志
+fetch('http://localhost:7428/jws/logs?data=客户端发生错误');
+
+// 通过POST发送日志
+fetch('http://localhost:7428/jws/logs', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    message: '用户操作完成',
+    level: 'info',
+    timestamp: new Date().toISOString()
+  })
+});
+```
+
+#### 4. 跨域请求
+
+该API支持CORS，允许来自任何域的请求：
+
+```javascript
+fetch('http://localhost:7428/jws/logs?data=CORS测试', {
+  mode: 'cors'
+});
+```
+
+### 日志输出格式
+
+当接收到日志时，它们将在控制台中以以下格式显示：
+
+```
+[JWS Log] 2026/1/16 09:39:59 - 127.0.0.1 - GET /jws/logs?data=test_log_message
+  Data: test_log_message
+```
+
+### 响应格式
+
+该API返回JSON响应：
+
+```json
+{
+  "success": true,
+  "message": "Log received",
+  "timestamp": "2026-01-16T01:39:59.082Z"
+}
+```
 ## 开发说明
 
 ### 核心功能实现

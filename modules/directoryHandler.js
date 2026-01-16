@@ -19,13 +19,72 @@ async function directoryListMiddleware(req, res, next) {
         // 没有index.html，显示目录列表
         const files = await fs.readdir(requestedPath);
         const filteredFiles = files.filter(file => 
-          file !== '.DS_Store' && 
-          file !== '.git' && 
+          // file !== '.DS_Store' && 
+          // file !== '.git' && 
+          // file !== '.idea' && 
+          // file !== 'node_modules' &&
+          // file !== 'package-lock.json' &&
           file !== '.gitignore' && 
-          file !== '.idea' && 
-          file !== 'node_modules' &&
-          file !== 'package-lock.json'
+          file !== '.npmignore'  
         );
+        
+        // 获取文件/目录信息以确定图标
+        const fileInfos = await Promise.all(
+          filteredFiles.map(async file => {
+            const filePath = path.join(requestedPath, file);
+            const stats = await fs.stat(filePath);
+            return {
+              name: file,
+              isDirectory: stats.isDirectory()
+            };
+          })
+        );
+        
+        // 排序：文件夹在前，文件在后
+        fileInfos.sort((a, b) => {
+          if (a.isDirectory && !b.isDirectory) return -1;
+          if (!a.isDirectory && b.isDirectory) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        // 获取文件图标
+        function getFileIcon(filename, isDirectory) {
+          if (isDirectory) return '📁';
+          
+          const ext = path.extname(filename).toLowerCase();
+          const iconMap = {
+            '.html': '🌐',
+            '.htm': '🌐',
+            '.css': '🎨',
+            '.less': '🎨',
+            '.sass': '🎨',
+            '.js': '📜',
+            '.json': '📋',
+            '.md': '📝',
+            '.txt': '📄',
+            '.docx': '📄',
+            '.xls': '📄',
+            '.xlsx': '📄',
+            '.png': '🖼️',
+            '.jpg': '🖼️',
+            '.jpeg': '🖼️',
+            '.gif': '🖼️',
+            '.svg': '🖼️',
+            '.ico': '🖼️',
+            '.pdf': '📕',
+            '.zip': '📦',
+            '.rar': '📦',
+            '.tar': '📦',
+            '.gz': '📦',
+            '.mp3': '🎵',
+            '.wav': '🎵',
+            '.mp4': '🎬',
+            '.avi': '🎬',
+            '.mov': '🎬',
+            '.mkv': '🎬'
+          };
+          return iconMap[ext] || '📄';
+        }
         
         // 生成目录列表HTML
         res.status(200).send(`
@@ -75,6 +134,7 @@ async function directoryListMiddleware(req, res, next) {
                 margin-right: 10px;
                 width: 20px;
                 text-align: center;
+                font-size: 18px;
               }
             </style>
           </head>
@@ -82,9 +142,10 @@ async function directoryListMiddleware(req, res, next) {
             <h1>Directory Listing - ${req.path}</h1>
             <div class="dir-list">
               ${req.path !== '/' ? `<div class="dir-item"><span class="icon">📁</span><a href="${path.dirname(req.path) || '/'}">..</a></div>` : ''}
-              ${filteredFiles.map(file => {
-                const filePath = path.join(req.path, file);
-                return `<div class="dir-item"><span class="icon">📄</span><a href="${filePath}">${file}</a></div>`;
+              ${fileInfos.map(file => {
+                const filePath = path.join(req.path, file.name);
+                const icon = getFileIcon(file.name, file.isDirectory);
+                return `<div class="dir-item"><span class="icon">${icon}</span><a href="${filePath}">${file.name}</a></div>`;
               }).join('')}
             </div>
           </body>

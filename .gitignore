@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 PUBLISH_TO_NPM.md
 package-lock.json
+dist
+
+.vscode
