@@ -39,7 +39,7 @@ const port = options.port;
 
 // 立即初始化静态目录，避免中间件配置错误
 // 只有通过 -d, --dir 参数明确指定的才作为目录，避免将额外参数误判为目录
-let staticDir = options.dir || '.';
+let staticDir = options.dir ? options.dir.trim() : '.';
 
 // 加载代理配置
 const { proxyConfig, proxyLog } = loadProxyConfig(options);
@@ -54,8 +54,40 @@ app.use(express.urlencoded({ extended: true }));
 // 应用代理中间件
 applyProxyMiddleware(app, proxyConfig, proxyLog, port, getIpAddress);
 
-// 应用日志收集接口中间件（在静态文件服务之前）
-logCollectionMiddleware(app, options.enableLogApi);
+// 设置静态目录到app实例中，供中间件使用
+app.set('staticDir', staticDir);
+
+// SPA路由支持中间件（用于React、Vue等history模式）
+app.use((req, res, next) => {
+  // 如果请求的是API路径，跳过
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  
+  // 如果开启了日志接口且请求的是日志接口，跳过
+  if (options.enableLogApi && req.path === '/jws/logs') {
+    return next();
+  }
+  
+  // 检查是否是静态文件请求（有扩展名）
+  if (path.extname(req.url)) {
+    return next();
+  }
+  
+  // 对于其他请求，返回index.html以支持SPA路由
+  const indexPath = path.join(staticDir, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      // 如果index.html不存在，继续到下一个中间件（让静态文件中间件处理）
+      next();
+    }
+  });
+});
+
+// 应用日志收集接口中间件（如果启用）
+if (options.enableLogApi) {
+  logCollectionMiddleware(app, true);
+}
 
 // 配置静态文件服务
 app.use(express.static(staticDir, {
@@ -72,9 +104,6 @@ app.use(express.static(staticDir, {
     }
   }
 }));
-
-// 设置静态目录到app实例中，供中间件使用
-app.set('staticDir', staticDir);
 
 // 实现目录列表功能
 app.use(directoryListMiddleware);

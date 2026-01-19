@@ -69,7 +69,8 @@ async function handleDirectorySelection(options, initialStaticDir) {
             if (!input) {
               return 'Error: Please enter a valid directory path / 错误: 请输入有效的目录路径';
             }
-            const resolvedPath = path.resolve(input);
+            const trimmedInput = input.trim();
+            const resolvedPath = path.resolve(trimmedInput);
             if (fs.existsSync(resolvedPath) && fs.lstatSync(resolvedPath).isDirectory()) {
               return true;
             }
@@ -77,12 +78,12 @@ async function handleDirectorySelection(options, initialStaticDir) {
           }
         }
       ]);
-      staticDir = dirAnswer.dirPath;
+      staticDir = dirAnswer.dirPath.trim();
     }
   }
   
   // 确保路径解析正确
-  return path.resolve(staticDir);
+  return path.resolve(staticDir.trim());
 }
 
 module.exports = {
